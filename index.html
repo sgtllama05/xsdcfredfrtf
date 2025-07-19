@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>19;9'13;16;12;5' Code Wizard</title>
+<style>
+  body {
+    background-color: black;
+    color: red;
+    font-family: monospace, monospace;
+    padding: 20px;
+    line-height: 1.5;
+  }
+  textarea {
+    width: 100%;
+    height: 150px;
+    background-color: #111;
+    color: red;
+    border: 1px solid red;
+    font-family: monospace, monospace;
+    font-size: 16px;
+    padding: 10px;
+    box-sizing: border-box;
+    resize: vertical;
+  }
+  select, button {
+    background-color: black;
+    color: red;
+    border: 1px solid red;
+    font-family: monospace, monospace;
+    font-size: 16px;
+    padding: 6px 12px;
+    margin-top: 10px;
+    cursor: pointer;
+  }
+  label {
+    font-weight: bold;
+    display: block;
+    margin-top: 15px;
+  }
+  .container {
+    max-width: 700px;
+    margin: auto;
+  }
+  #bottom-right-link {
+    position: fixed;
+    bottom: 10px;
+    right: 10px;
+    background-color: black;
+    color: black;
+    padding: 8px 12px;
+    text-decoration: none;
+    border-radius: 5px;
+    font-family: sans-serif;
+    font-size: 14px;
+    z-index: 9999;
+  }
+
+  #bottom-right-link:hover {
+    text-decoration: underline;
+  }
+</style>
+</head>
+<body>
+  <div class="container">
+    <h1>19;9'13;16;12;5' Code Wizard</h1>
+
+    <label for="mode">Mode:</label>
+    <select id="mode">
+      <option value="encode">Encode</option>
+      <option value="decode">Decode</option>
+    </select>
+
+    <label for="inputText">Input:</label>
+    <textarea id="inputText" placeholder="Enter your message here"></textarea>
+
+    <button id="processBtn">Process</button>
+
+    <label for="outputText">Output:</label>
+    <textarea id="outputText" readonly placeholder="Result will appear here"></textarea>
+  </div>
+
+<script>
+  const letterToNum = letter => {
+    let code = letter.toLowerCase().charCodeAt(0);
+    if(code < 97 || code > 122) return null;
+    return code - 96;
+  };
+
+  const digitToLetter = d => {
+    const map = ['j','a','b','c','d','e','f','g','h','i'];
+    return map[d];
+  };
+
+  const letterToDigit = {
+    'a':'1',
+    'b':'2',
+    'c':'3',
+    'd':'4',
+    'e':'5',
+    'f':'6',
+    'g':'7',
+    'h':'8',
+    'i':'9',
+    'j':'0'
+  };
+
+  function encodeWord(word) {
+    if(/^\d+$/.test(word)) {
+      // Encode number as letters + length marker
+      let len = word.length;
+      let lengthMarker;
+      if(len === 1) lengthMarker = "'";
+      else if(len === 2) lengthMarker = ";";
+      else if(len === 3) lengthMarker = "=";
+      else if(len === 4) lengthMarker = "/";
+      else if(len === 5) lengthMarker = "\\";
+      else lengthMarker = "'";
+
+      let converted = '';
+      for(let ch of word) {
+        converted += digitToLetter(parseInt(ch));
+      }
+      return converted + lengthMarker;
+    } else {
+      // Encode letters with capitalization
+      let result = '';
+      for(let ch of word) {
+        if(/[a-zA-Z]/.test(ch)) {
+          let num = letterToNum(ch);
+          if(num === null) {
+            result += ch;
+            continue;
+          }
+          result += (num < 10 ? num + "'" : num + ";");
+          if(ch === ch.toUpperCase()) {
+            result += '.';
+          }
+        } else {
+          result += ch;
+        }
+      }
+      return result;
+    }
+  }
+
+  function encodeText(text) {
+    let parts = text.split(/(\s+)/);
+    return parts.map(p => /\S/.test(p) ? encodeWord(p) : p).join('');
+  }
+
+  function decodeText(text) {
+    let i = 0;
+    let output = '';
+
+    while(i < text.length) {
+      let ch = text[i];
+
+      if(/\s/.test(ch)) {
+        output += ch;
+        i++;
+        continue;
+      }
+
+      // Decode letter codes: number(s) + (' or ;) + optional '.'
+      if(/[0-9]/.test(ch)) {
+        let numStr = '';
+        while(i < text.length && /[0-9]/.test(text[i])) {
+          numStr += text[i];
+          i++;
+        }
+        if(i >= text.length) {
+          output += numStr;
+          break;
+        }
+        let punc = text[i];
+        i++;
+        if(punc === "'" || punc === ';') {
+          let num = parseInt(numStr, 10);
+          if(num >= 1 && num <= 26) {
+            let letter = String.fromCharCode(num + 96);
+            if(i < text.length && text[i] === '.') {
+              letter = letter.toUpperCase();
+              i++;
+            }
+            output += letter;
+          } else {
+            output += numStr + punc;
+          }
+          continue;
+        } else {
+          output += numStr + punc;
+          continue;
+        }
+      }
+
+      // Decode number codes: letters a-j + length punctuation (' ; = / \)
+      if(/[a-j]/.test(ch)) {
+        let digits = '';
+        while(i < text.length && /[a-j]/.test(text[i])) {
+          digits += text[i];
+          i++;
+        }
+        if(i >= text.length) {
+          output += digits;
+          break;
+        }
+        let punc = text[i];
+        i++;
+
+        if(["'", ";", "=", "/", "\\"].includes(punc)) {
+          const lengthMap = {
+            "'": 1,
+            ";": 2,
+            "=": 3,
+            "/": 4,
+            "\\": 5
+          };
+          let expectedLength = lengthMap[punc];
+          if(digits.length === expectedLength) {
+            let number = '';
+            for(let d of digits) {
+              if(d in letterToDigit) {
+                number += letterToDigit[d];
+              } else {
+                number = null;
+                break;
+              }
+            }
+            if(number !== null) {
+              output += number;
+            } else {
+              output += digits + punc;
+            }
+          } else {
+            output += digits + punc;
+          }
+          continue;
+        } else {
+          output += digits + punc;
+          continue;
+        }
+      }
+
+      // Preserve punctuation
+      if(/[,?!:"]/.test(ch)) {
+        output += ch;
+        i++;
+        continue;
+      }
+
+      // Other chars as is
+      output += ch;
+      i++;
+    }
+
+    return output;
+  }
+
+  document.getElementById('processBtn').addEventListener('click', () => {
+    const mode = document.getElementById('mode').value;
+    const input = document.getElementById('inputText').value.trim();
+    let output = '';
+    if(!input) {
+      output = '';
+    } else if(mode === 'encode') {
+      output = encodeText(input);
+    } else if(mode === 'decode') {
+      output = decodeText(input);
+    }
+    document.getElementById('outputText').value = output;
+  });
+</script>
+<a href="https://sgtllama05.github.io/numbersplease/" target="_blank" id="bottom-right-link">No</a>
+</body>
+</html>
